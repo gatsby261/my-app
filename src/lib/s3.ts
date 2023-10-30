@@ -15,10 +15,39 @@ export async function uploadToS3 (file: File) {
       region: 'us-east-1'
     })
 
+    const file_key =
+      'uploads/' + Date.now().toString() + file.name.replace(' ', '-')
+
     const params = {
-        Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME,
-        Key: file.name,
-        Body: file
+      Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME!,
+      Key: file_key,
+      Body: file
     }
-  } catch (error) {}
+
+    const upload = s3
+      .putObject(params)
+      .on('httpUploadProgress', evt => {
+        console.log(
+          'uploading to s3...',
+          parseInt(((evt.loaded * 100) / evt.total).toString()) + '%'
+        )
+      })
+      .promise()
+
+    await upload.then(data => {
+      console.log('successfully uploaded to S3!', file_key)
+    })
+    return Promise.resolve({
+      file_key,
+      file_name: file.name
+    })
+  } catch (error) {
+    console.log('Error', error)
+    return Promise.reject()
+  }
+}
+
+export function getS3Url(file_key: string) {
+  const url = `https://${process.env.NEXT_PUBLIC_S3_BUCKET_NAME}.s3.us-east-1.amazonaws.com/${file_key};`
+  return url;
 }
